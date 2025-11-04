@@ -31,6 +31,10 @@ import { runGmailUpdater } from './services/gmailUpdater.js';
  app.get('/api/health', (_req, res) => {
  	res.json({ ok: true, service: 'triveni-hostels-backend' });
  });
+app.get('/', (req, res) => {
+  res.send('✅ Triveni Hostels Backend is running successfully on Render!');
+});
+
 
  // Routes (wired below after models/middleware exist)
 app.use('/api/auth', authRoutes);
