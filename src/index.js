@@ -1,84 +1,95 @@
- import express from 'express';
- import cors from 'cors';
- import morgan from 'morgan';
- import cookieParser from 'cookie-parser';
- import dotenv from 'dotenv';
- import mongoose from 'mongoose';
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import cron from 'node-cron';
+
 import authRoutes from './routes/auth.js';
 import studentRoutes from './routes/students.js';
 import feeRoutes from './routes/fees.js';
 import paymentRoutes from './routes/payment.js';
 import gmailRoutes from './routes/gmail.js';
-import cron from 'node-cron';
 import { runGmailUpdater } from './services/gmailUpdater.js';
 
- dotenv.config();
+dotenv.config();
 
- const app = express();
+const app = express();
 
- // Middleware
- app.use(express.json({ limit: '1mb' }));
- app.use(cookieParser());
- app.use(morgan('dev'));
- app.use(
- 	cors({
- 		origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
- 		credentials: true,
- 	})
- );
+// ✅ Middleware
+app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
+app.use(morgan('dev'));
 
- // Basic health
- app.get('/api/health', (_req, res) => {
- 	res.json({ ok: true, service: 'triveni-hostels-backend' });
- });
+// ✅ Allow CORS from both localhost and Vercel frontend
+const allowedOrigins = [
+  'http://localhost:5173', // local dev
+  'https://your-frontend-name.vercel.app', // replace with actual Vercel URL after first deploy
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  })
+);
+
+// ✅ Basic health route
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'triveni-hostels-backend' });
+});
+
+// ✅ Root route (for Render test)
 app.get('/', (req, res) => {
   res.send('✅ Triveni Hostels Backend is running successfully on Render!');
 });
 
-
- // Routes (wired below after models/middleware exist)
+// ✅ API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/gmail', gmailRoutes);
 
- const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 8000;
 
- async function start() {
- 	try {
- 		const mongoUri = process.env.MONGODB_URI;
- 		if (!mongoUri) throw new Error('MONGODB_URI not set');
- 		await mongoose.connect(mongoUri, { 
- 			serverSelectionTimeoutMS: 5000,
- 		});
- 		// eslint-disable-next-line no-console
- 		console.log('Connected to MongoDB');
+async function start() {
+  try {
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) throw new Error('MONGODB_URI not set');
 
- 		app.listen(PORT, () => {
- 			// eslint-disable-next-line no-console
- 			console.log(`API listening on http://localhost:${PORT}`);
- 		});
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    console.log('✅ Connected to MongoDB');
 
-		// Cron
-		const schedule = process.env.CRON_SCHEDULE || '*/10 * * * *';
-		cron.schedule(schedule, async () => {
-			try {
-				await runGmailUpdater();
-				// eslint-disable-next-line no-console
-				console.log('Gmail updater ran');
-			} catch (e) {
-				// eslint-disable-next-line no-console
-				console.error('Gmail updater error:', e.message);
-			}
-		});
- 	} catch (err) {
- 		// eslint-disable-next-line no-console
- 		console.error('Failed to start server:', err.message);
- 		process.exit(1);
- 	}
- }
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 API listening on http://localhost:${PORT}`);
+    });
 
- start();
+    // ✅ Cron job setup (auto Gmail updater)
+    const schedule = process.env.CRON_SCHEDULE || '*/10 * * * *';
+    cron.schedule(schedule, async () => {
+      try {
+        await runGmailUpdater();
+        console.log('📩 Gmail updater ran');
+      } catch (e) {
+        console.error('Gmail updater error:', e.message);
+      }
+    });
+  } catch (err) {
+    console.error('❌ Failed to start server:', err.message);
+    process.exit(1);
+  }
+}
+
+start();
 
 
