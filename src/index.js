@@ -25,7 +25,7 @@ app.use(morgan('dev'));
 // ✅ Allow CORS from both localhost and Vercel frontend
 const allowedOrigins = [
   'http://localhost:5173', // local dev
-  'https://your-frontend-name.vercel.app', // replace with actual Vercel URL after first deploy
+  'https://hostelfeesfrontend-2.vercel.app', // replace with actual Vercel URL after first deploy
 ];
 
 app.use(
